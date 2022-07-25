@@ -1493,7 +1493,7 @@ public class BrokerController {
             changeSpecialServiceStatus(this.brokerConfig.getBrokerId() == MixAll.MASTER_ID);
             this.registerBrokerAll(true, false, true);
         }
-
+        // 每隔30s上报Broker信息到NameServer
         scheduledFutures.add(this.scheduledExecutorService.scheduleAtFixedRate(new AbstractBrokerRunnable(this.getBrokerIdentity()) {
             @Override
             public void run2() {

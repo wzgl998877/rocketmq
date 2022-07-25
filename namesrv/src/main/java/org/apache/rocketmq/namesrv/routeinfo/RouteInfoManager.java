@@ -234,22 +234,24 @@ public class RouteInfoManager {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
             try {
+                // 加锁
                 this.lock.writeLock().lockInterruptibly();
-
+                // 维护clusterAddrTable
                 Set<String> brokerNames = this.clusterAddrTable.computeIfAbsent(clusterName, k -> new HashSet<>());
                 brokerNames.add(brokerName);
 
                 boolean registerFirst = false;
-
+                // 维护brokerAddrTable
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                // 第一次注册,则创建brokerData
                 if (null == brokerData) {
                     registerFirst = true;
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<>());
                     this.brokerAddrTable.put(brokerName, brokerData);
                 }
-
+                // 非第一次注册,更新Broker
                 boolean isOldVersionBroker = enableActingMaster == null;
-                brokerData.setEnableActingMaster(isOldVersionBroker ? false : enableActingMaster);
+                brokerData.setEnableActingMaster(!isOldVersionBroker && enableActingMaster);
 
                 Map<Long, String> brokerAddrsMap = brokerData.getBrokerAddrs();
 
@@ -292,7 +294,7 @@ public class RouteInfoManager {
                 boolean isMaster = MixAll.MASTER_ID == brokerId;
                 boolean isPrimeSlave = !isOldVersionBroker && !isMaster
                     && brokerId == Collections.min(brokerAddrsMap.keySet());
-
+                // 维护topicQueueTable
                 if (null != topicConfigWrapper && (isMaster || isPrimeSlave)) {
 
                     ConcurrentMap<String, TopicConfig> tcTable =
@@ -326,7 +328,7 @@ public class RouteInfoManager {
                         }
                     }
                 }
-
+                // 维护brokerLiveTable
                 BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(clusterName, brokerAddr);
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddrInfo,
                     new BrokerLiveInfo(
@@ -338,7 +340,7 @@ public class RouteInfoManager {
                 if (null == prevBrokerLiveInfo) {
                     log.info("new broker registered, {} HAService: {}", brokerAddrInfo, haServerAddr);
                 }
-
+                // 维护filterServerList
                 if (filterServerList != null) {
                     if (filterServerList.isEmpty()) {
                         this.filterServerTable.remove(brokerAddrInfo);
@@ -769,6 +771,7 @@ public class RouteInfoManager {
     public void scanNotActiveBroker() {
         try {
             log.info("start scanNotActiveBroker");
+            // 遍历brokerLiveTable，如果BrokerLive的lastUpdateTimestamp的时间戳距当前时间超过120s，关闭Channel，然后删除与该Broker相关的路由信息
             for (Entry<BrokerAddrInfo, BrokerLiveInfo> next : this.brokerLiveTable.entrySet()) {
                 long last = next.getValue().getLastUpdateTimestamp();
                 long timeoutMillis = next.getValue().getHeartbeatTimeoutMillis();

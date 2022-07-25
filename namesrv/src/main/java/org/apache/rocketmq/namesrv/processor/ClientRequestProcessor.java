@@ -76,11 +76,12 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
         TopicRouteDatas topicRouteDatas = new TopicRouteDatas();
 
         for (String topic : topics) {
+            //调用RouteInfoManager的方法,从路由表topicQueueTable、brokerAddrTable、filterServerTable中分别填充TopicRouteData的List<QueueData>、List<BrokerData>、filterServer
             TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(topic);
             if (topicRouteData == null) {
                 continue;
             }
-
+            // 如果找到主题对应你的路由信息并且该主题为顺序消息，则从NameServer KVConfig中获取关于顺序消息相关的配置填充路由信息
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
                 String orderTopicConf =
                     this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, topic);
