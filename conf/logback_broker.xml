@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="10 seconds">
+
+    <springProperty scope="context" name="springAppName" source="spring.application.name" default = "broker"/>
+
+    <springProperty scope="context" name="logPath" source="logPath"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="[%date] [%X{X-B3-TraceId:-}] [%X{X-B3-ParentSpanId:-}] [%X{X-B3-SpanId:-}] [%thread] [%-5level] [%logger{36}] [%M] [%line] [%X{logId}] => %msg%n"/>
+
+    <!--生产环境去掉控制台输出-->
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <withJansi>true</withJansi>
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>utf8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="dailyRollingFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${logPath}${springAppName}.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${logPath}${broker}.%d{yyyy-MM-dd}-%i.log</FileNamePattern>
+            <maxHistory>100</maxHistory>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+        <encoder>
+            <Pattern>${CONSOLE_LOG_PATTERN}</Pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
+    </appender>
+    <appender name ="ASYNC_FILE" class= "ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>1234</queueSize>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref = "dailyRollingFileAppender"/>
+    </appender>
+
+    <logger name="com.jlpay" level="DEBUG"/>
+    <root level="INFO">
+        <appender-ref ref="stdout"/>
+        <appender-ref ref="dailyRollingFileAppender"/>
+    </root>
+
+    <springProfile name="kx.verify">
+        <logger name="com.jlpay" level="DEBUG"/>
+        <root level="info">
+            <appender-ref ref="dailyRollingFileAppender"/>
+        </root>
+    </springProfile>
+
+    <!-- kx.prod对应与你要生效的环境，启动脚本start.sh 里面制定的PROFILES_ACTIVE=dev -->
+    <springProfile name="txc.prod">
+        <logger name="com.jlpay" level="INFO"/>
+        <root level="info">
+            <appender-ref ref="dailyRollingFileAppender"/>
+        </root>
+    </springProfile>
+
+</configuration>
