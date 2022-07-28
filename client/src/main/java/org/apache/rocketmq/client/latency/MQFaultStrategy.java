@@ -56,6 +56,7 @@ public class MQFaultStrategy {
     }
 
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
+        // 启用Broker故障延迟机制
         if (this.sendLatencyFaultEnable) {
             try {
                 int index = tpInfo.getSendWhichQueue().incrementAndGet();
@@ -64,6 +65,7 @@ public class MQFaultStrategy {
                     if (pos < 0)
                         pos = 0;
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
+                    // 根据时间戳判断broker是否可用
                     if (latencyFaultTolerance.isAvailable(mq.getBrokerName()))
                         return mq;
                 }
@@ -78,12 +80,13 @@ public class MQFaultStrategy {
                     }
                     return mq;
                 } else {
+                    // 移除broker不可用队列
                     latencyFaultTolerance.remove(notBestBroker);
                 }
             } catch (Exception e) {
                 log.error("Error occurred when selecting message queue", e);
             }
-
+            // 默认不启用Broker故障延迟机制
             return tpInfo.selectOneMessageQueue();
         }
 
@@ -92,12 +95,15 @@ public class MQFaultStrategy {
 
     public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
         if (this.sendLatencyFaultEnable) {
+            // 计算broker不可用的时长
             long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency);
+            // 更新时间戳
             this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration);
         }
     }
 
     private long computeNotAvailableDuration(final long currentLatency) {
+        // 从数组{50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L}中拿接近的一个时间
         for (int i = latencyMax.length - 1; i >= 0; i--) {
             if (currentLatency >= latencyMax[i])
                 return this.notAvailableDuration[i];

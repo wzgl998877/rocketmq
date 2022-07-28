@@ -35,6 +35,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         if (null == old) {
             final FaultItem faultItem = new FaultItem(name);
             faultItem.setCurrentLatency(currentLatency);
+            // 关键就在于这里，broker超过这个时间才可用
             faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
 
             old = this.faultItemTable.putIfAbsent(name, faultItem);
